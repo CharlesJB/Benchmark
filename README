@@ -1,0 +1,28 @@
+This repository will contain the tools that will be coded for the peak calling benchmark project
+
+// Programs:
+
+eland2bed.cpp
+	Convert the output of the eland aligner to bed format
+
+
+// Scripts:
+Note: All the scripts use DarkFishTechnology to manage cache, log commands and run
+commands in parallel. (see https://github.com/sebhtml/NGS-Pipelines)
+
+BenchmarkTools
+	Collection of tools that are used in *_Analysis scripts
+
+SISSR_Analysis.sh
+	Usage:
+	SISSR_Analysis.sh NumberOfProcessors FileFormat Options TreatmentFile ControlFile
+
+	NumberOfProcessors: 	The number of processor the script is allowed to use.
+	FileFormat: 		bed or eland.
+	Options: 		The list of options in the same format as specified in SISSR
+		 		documentation, between quotation marks. Minimally needs to 
+				include genome size (i.e.: "-s 3200000000").
+	TreatmentFile: 		The treatment file to analyze. Use relative path starting 
+				from current working directory.
+	BackGroundFile:		The background file to analyse. Use relative path starting
+				from current working directory. Optional.
