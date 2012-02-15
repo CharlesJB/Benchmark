@@ -1,0 +1,6 @@
+BenchmarkTools_prepareInputSISSR() {
+	treatment=$1
+	control=$2
+
+	awk '{$5=0;$6=$4;$4=0}1' $sample > $output
+}
