@@ -1,6 +1,72 @@
-BenchmarkTools_prepareInputSISSR() {
-	treatment=$1
-	control=$2
+#!/bin/bash
 
-	awk '{$5=0;$6=$4;$4=0}1' $sample > $output
+# General tools
+
+BenchmarkTools_prepareSample(){
+	filename=$1
+
+	if [ ! -d Samples ]
+	then
+		DarkFishTechnology_runCommand 0 "mkdir Samples"
+	fi
+	
+	sampleName=Samples/$(basename $filename)
+	DarkFishTechnology_runCommand 0 "ln -s ../../$filename $sampleName"
+	randomFile=$(DarkFishTechnology_generateCacheEntry)	
+	DarkFishTechnology_runCommand 0 "mv $sampleName $randomFile"
+	DarkFishTechnology_linkCacheEntry $randomFile Samples $(basename $filename)
 }
+
+# SISSRs tools
+
+BenchmarkTools_convertSamplesSISSRs(){
+	DarkFishTechnology_runCommand 0 "mkdir FormatedSamples"
+	
+	fileNumber=0
+	for file in $(ls Samples/)
+	do
+		command=""
+		processorNumber=$(($fileNumber%$processors))
+		randomFile=$(DarkFishTechnology_generateCacheEntry)
+	
+		# If file format is eland, we need to convert to regular 4 column bed file to match FOXA1 file format
+		if [ $fileFormat = "eland" ]
+		then
+			command="( eland2bed Samples/$file | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFile ) ; "
+		fi
+
+		# Then we add the two extra line so sissrs.pl doesn't crash...
+		command=$command"( awk '{\$5=0;\$6=\$4;\$4=0}1' Samples/$file > $randomFile ) ; "
+
+		command=$command"( DarkFishTechnology_linkCacheEntry $randomFile FormatedSamples Formated_$file ) ; "
+		FormatedSamples[$processorNumber]=$command
+		fileNumber=$(($fileNumber+1))
+	done
+
+	DarkFishTechnology_runGroupCommands "FormatedSamples"
+}
+
+BenchmarkTools_getRawSISSRsResults(){
+	DarkFishTechnology_runCommand 0 "mkdir RawResults"
+	command=""
+
+	randomFile=$(DarkFishTechnology_generateCacheEntry)
+	formatedTreatment=FormatedSamples/Formated_$(basename $treatmentFile)
+	if [ controlFile != "" ]
+	then
+		formatedControl=FormatedSamples/Formated_$(basename $controlFile)
+		command="sissrs.pl -i $formatedTreatment -b $formatedControl -o $randomFile $options"
+	else
+		command="sissrs.pl -i $formatedTreatment -o $randomFile $options"
+	fi
+	DarkFishTechnology_runCommand 0 "$command"
+	DarkFishTechnology_linkCacheEntry $randomFile RawResults $output
+}
+
+BenchmarkTools_trimSISSRsResults(){
+	DarkFishTechnology_runCommand 0 "mkdir TrimmedResults"
+
+	DarkFishTechnology_runCommand 0 "( tail -n +58 RawResults/$output | head -n -1 > TrimmedResults/$output ) ; "
+	DarkFishTechnology_runCommand 0 "( sed -n 23,55p RawResults/$output > TrimmedResults/Summary$output ) ; "
+}
+

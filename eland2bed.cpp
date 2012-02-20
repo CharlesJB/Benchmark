@@ -4,6 +4,8 @@
  * \Author Charles Joly Beauparlant
  *
  * \Date 2012-02-15
+ *
+ * \Version 1.0
  */
 
 #include <iostream>
@@ -21,22 +23,28 @@ int getPositionEnd(char* positionBegin, char* sequence);
 
 int main(int argc, char* argv[]) {
 	if (argc == 2) {
-		// 1. Open file
-		ifstream in(argv[1], ifstream::in);
+		if (strcmp(argv[1], "--version") != 0) {
+			// 1. Open file
+			ifstream in(argv[1], ifstream::in);
 
-		// 2. For each line in the file
-		if (in.is_open()) {
-			char line[2048];
-			while (in.getline(line, 2047)) {
-			// 2.1 Convert to bed	
-				convertElandLineToBed(line);
+			// 2. For each line in the file
+			if (in.is_open()) {
+				char line[2048];
+				while (in.getline(line, 2047)) {
+				// 2.1 Convert to bed	
+					convertElandLineToBed(line);
+				}
 			}
+		}
+		else { // if (strcmp(argv[1], "--version") == 0)
+			cout << "eland2bed v1.0" << endl;
 		}
 	}
 	else { // if (argc != 2)
 		// Print usage
 		cout << "eland2bed usage:" << endl;
 		cout << "eland2bed <ElandFileName>" << endl;
+		cout << "eland2bed --version" << endl;
 	}
 	return 0;
 }

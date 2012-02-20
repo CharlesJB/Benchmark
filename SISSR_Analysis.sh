@@ -3,26 +3,35 @@
 # date: 2012-02-13
 # based on BlueTsunami: github.com/sebhtml/NGS-Pipelines/blob/master/BlueTsunami
 
-treatmentFileOrigin=$1
 
 # the argument must not be absolute paths.
-inputFileOrigin=$2
-processors=$3
-output=$4
-command=$5
+processors=$1
+fileFormat=$2
+output=$3
+options=$4
+treatmentFile=$5
+controlFile=$6
 
 mkdir $output
 cd $output
 
 source $DARK_FISH_TECHNOLOGY
+source $BENCHMARKTOOLS
 
 DarkFishTechnology_initializeDirectory
+DarkFishTechnology_runCommand 0 "eland2bed --version &> meta/eland2bed.version"
 
-#DarkFishTechnology_prepareReference $treatmentFileOrigin
-BenchmarkTools_prepareSampleSISSR $treatmentFileOrigin 
-BenchmarkTools_prepareSampleSISSR $inputFileOrigin 
-DarkFishTechnology_prepareSample $inputFileOrigin
+# Prepare samples
+BenchmarkTools_prepareSample $treatmentFile
+BenchmarkTools_prepareSample $controlFile
 
-# TODO get R's sessionInfo (utiliser /dev/null pour eviter trop de blabla?
+# Convert sample for analysis
+BenchmarkTools_convertSamplesSISSRs
 
-# Prepare sample
+# Do the actual analysis
+BenchmarkTools_getRawSISSRsResults
+DarkFishTechnology_purgeGroupCache "FormatedSamples"
+
+# Trim results
+BenchmarkTools_trimSISSRsResults
+DarkFishTechnology_purgeGroupCache "RawResults"
