@@ -97,7 +97,6 @@ BenchmarkTools_convertSamplesSISSRs(){
 
 		if [ ${controlFiles[$index]} != "" ]
 		then
-#			commandControl=$commandControl"( awk '{\$5=0;\$6=\$4;\$4=0}1' $controlFileName > $randomFileControl) ; "
 			processorNumber=$(($fileNumber%$processors))
 			toAdd="( DarkFishTechnology_linkCacheEntry $randomFileControl FormatedSamples Formated_$(basename $controlFileName)) ; "
 			commandControl=$commandControl$toAdd
@@ -108,27 +107,6 @@ BenchmarkTools_convertSamplesSISSRs(){
 		index=$((index+1))
 	done
 	
-#	fileNumber=0
-#	for file in $(ls Samples/)
-#	do
-#		command=""
-#		processorNumber=$(($fileNumber%$processors))
-#		randomFile=$(DarkFishTechnology_generateCacheEntry)
-#	
-#		# If file format is eland, we need to convert to regular 4 column bed file to match FOXA1 file format
-#		if [ $fileFormat = "eland" ]
-#		then
-#			command="( eland2bed Samples/$file | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFile ) ; "
-#		fi
-#
-#		# Then we add the two extra line so sissrs.pl doesn't crash...
-#		command=$command"( awk '{\$5=0;\$6=\$4;\$4=0}1' Samples/$file > $randomFile ) ; "
-#
-#		command=$command"( DarkFishTechnology_linkCacheEntry $randomFile FormatedSamples Formated_$file ) ; "
-#		FormatedSamples[$processorNumber]=$command
-#		fileNumber=$(($fileNumber+1))
-#	done
-#
 	DarkFishTechnology_runGroupCommands "FormatedSamples"
 }
 
