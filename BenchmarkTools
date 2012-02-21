@@ -2,14 +2,40 @@
 
 # General tools
 
+BenchmarkTools_extractFileInfos(){
+	index=0
+	while read line
+	do
+		echo $line
+		words=( $line )
+		fileFormats[$index]=${words[0]}
+		treatmentFiles[$index]=${words[1]}
+		controlFiles[$index]=${words[2]}		
+		index=$((index+1))
+	done < $fileName
+}
+
+BenchmarkTools_prepareSamples(){
+	DarkFishTechnology_runCommand 0 "mkdir Samples"
+
+	echo "\$fileFormat[0] = ${fileFormat[0]}"
+	if [ ${fileFormats[0]} = "txt" ]
+	then
+		BenchmarkTools_extractFileInfos
+	fi
+
+	index=0
+	for i in ${treatmentFiles[@]}
+	do
+		BenchmarkTools_prepareSample "${treatmentFiles[$index]}"
+		BenchmarkTools_prepareSample "${controlFiles[$index]}"
+		index=$((index+1))
+	done
+}
+
 BenchmarkTools_prepareSample(){
 	filename=$1
 
-	if [ ! -d Samples ]
-	then
-		DarkFishTechnology_runCommand 0 "mkdir Samples"
-	fi
-	
 	sampleName=Samples/$(basename $filename)
 	DarkFishTechnology_runCommand 0 "ln -s ../../$filename $sampleName"
 	randomFile=$(DarkFishTechnology_generateCacheEntry)	
@@ -20,53 +46,140 @@ BenchmarkTools_prepareSample(){
 # SISSRs tools
 
 BenchmarkTools_convertSamplesSISSRs(){
-	DarkFishTechnology_runCommand 0 "mkdir FormatedSamples"
-	
+	DarkFishTechnology_runCommand 0 "( mkdir FormatedSamples ) ; "
+
+	index=0
 	fileNumber=0
-	for file in $(ls Samples/)
+	for file in ${treatmentFiles[@]}
 	do
-		command=""
-		processorNumber=$(($fileNumber%$processors))
-		randomFile=$(DarkFishTechnology_generateCacheEntry)
-	
-		# If file format is eland, we need to convert to regular 4 column bed file to match FOXA1 file format
-		if [ $fileFormat = "eland" ]
+		commandTreatment=""
+		randomFileTreatment=$(DarkFishTechnology_generateCacheEntry)
+		treatmentFileName=Samples/$(basename ${treatmentFiles[$index]})
+
+		if [ ${controlFiles[$index]}!="" ]
 		then
-			command="( eland2bed Samples/$file | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFile ) ; "
+			commandControl=""
+			randomFileControl=$(DarkFishTechnology_generateCacheEntry)
+			controlFileName=Samples/$(basename ${controlFiles[$index]})
 		fi
 
-		# Then we add the two extra line so sissrs.pl doesn't crash...
-		command=$command"( awk '{\$5=0;\$6=\$4;\$4=0}1' Samples/$file > $randomFile ) ; "
-
-		command=$command"( DarkFishTechnology_linkCacheEntry $randomFile FormatedSamples Formated_$file ) ; "
-		FormatedSamples[$processorNumber]=$command
+		# If file format is eland, we need to convert to regular 4 column bed file to match FOXA1 file format
+		# Then we add the two extra columns so sissrs.pl doesn't crash and finish command
+		if [ ${fileFormats[$index]} = "eland" ]
+		then
+			tmpName=${treatmentFileName%.*}.tmp
+			toAdd="( cat $treatmentFileName | sed -e 's/Homo_sapiens.NCBI36.42.dna.chromosome.//g' | sed -e 's/.fa//g' > $tmpName ) ; "
+			commandTreatment=$commandTreatment$toAdd
+			commandTreatment=$commandTreatment"( eland2bed $tmpName | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFileTreatment ) ; "
+			commandTreatment=$commandTreatment"( rm $tmpName ) ;"
+			if [ ${controlFiles[$index]}!="" ]
+			then
+				tmpName=${controlFileName%.*}.tmp
+				toAdd="( cat $controlFileName | sed -e 's/Homo_sapiens.NCBI36.42.dna.chromosome.//g' | sed -e 's/.fa//g' > $tmpName ) ; "
+				commandControl=$commandControl$toAdd
+				commandControl=$commandControl"( eland2bed $controlFileName | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFileControl ) ; "
+				commandControl=$commandControl"( rm $tmpName ) ;"
+			fi
+		else
+			commandTreatment=$commandTreatment"( awk '{\$5=0;\$6=\$4;\$4=0}1' $treatmentFileName > $randomFileTreatment) ; "
+		
+			if [ ${controlFiles[$index]} != "" ]
+			then
+				commandControl=$commandControl"( awk '{\$5=0;\$6=\$4;\$4=0}1' $controlFileName > $randomFileControl) ; "
+			fi
+		fi
+		
+		processorNumber=$(($fileNumber%$processors))
+		toAdd="( DarkFishTechnology_linkCacheEntry $randomFileTreatment FormatedSamples Formated_$(basename $treatmentFileName)) ; "
+		commandTreatment=$commandTreatment$toAdd
+		FormatedSamples[$processorNumber]=${FormatedSamples[$processorNumber]}$commandTreatment
 		fileNumber=$(($fileNumber+1))
-	done
 
+		if [ ${controlFiles[$index]} != "" ]
+		then
+#			commandControl=$commandControl"( awk '{\$5=0;\$6=\$4;\$4=0}1' $controlFileName > $randomFileControl) ; "
+			processorNumber=$(($fileNumber%$processors))
+			toAdd="( DarkFishTechnology_linkCacheEntry $randomFileControl FormatedSamples Formated_$(basename $controlFileName)) ; "
+			commandControl=$commandControl$toAdd
+			FormatedSamples[$processorNumber]=${FormatedSamples[$processorNumber]}$commandControl
+			fileNumber=$((fileNumber+1))
+		fi
+
+		index=$((index+1))
+	done
+	
+#	fileNumber=0
+#	for file in $(ls Samples/)
+#	do
+#		command=""
+#		processorNumber=$(($fileNumber%$processors))
+#		randomFile=$(DarkFishTechnology_generateCacheEntry)
+#	
+#		# If file format is eland, we need to convert to regular 4 column bed file to match FOXA1 file format
+#		if [ $fileFormat = "eland" ]
+#		then
+#			command="( eland2bed Samples/$file | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFile ) ; "
+#		fi
+#
+#		# Then we add the two extra line so sissrs.pl doesn't crash...
+#		command=$command"( awk '{\$5=0;\$6=\$4;\$4=0}1' Samples/$file > $randomFile ) ; "
+#
+#		command=$command"( DarkFishTechnology_linkCacheEntry $randomFile FormatedSamples Formated_$file ) ; "
+#		FormatedSamples[$processorNumber]=$command
+#		fileNumber=$(($fileNumber+1))
+#	done
+#
 	DarkFishTechnology_runGroupCommands "FormatedSamples"
 }
 
 BenchmarkTools_getRawSISSRsResults(){
 	DarkFishTechnology_runCommand 0 "mkdir RawResults"
-	command=""
+	commandRaw=""
 
-	randomFile=$(DarkFishTechnology_generateCacheEntry)
-	formatedTreatment=FormatedSamples/Formated_$(basename $treatmentFile)
-	if [ controlFile != "" ]
-	then
-		formatedControl=FormatedSamples/Formated_$(basename $controlFile)
-		command="sissrs.pl -i $formatedTreatment -b $formatedControl -o $randomFile $options"
-	else
-		command="sissrs.pl -i $formatedTreatment -o $randomFile $options"
-	fi
-	DarkFishTechnology_runCommand 0 "$command"
-	DarkFishTechnology_linkCacheEntry $randomFile RawResults $output
+	index=0
+	for tmp in ${treatmentFiles[@]}
+	do
+		randomFile=$(DarkFishTechnology_generateCacheEntry)
+		formatedTreatment=FormatedSamples/Formated_$(basename ${treatmentFiles[$index]})
+		if [ $controlFiles[$index] != "" ]
+		then
+			formatedControl=FormatedSamples/Formated_$(basename ${controlFiles[$index]})
+			commandRaw="( sissrs.pl -i $formatedTreatment -b $formatedControl -o $randomFile $options ) ; "
+		else
+			commandRaw="( sissrs.pl -i $formatedTreatment -o $randomFile $options ) ; "
+		fi
+		processorNumber=$(($index%$processors))
+		commandRaw=$commandRaw"( DarkFishTechnology_linkCacheEntry $randomFile RawResults "$(basename ${treatmentFiles[$index]%.*}).raw") ; "
+		RawResults[$processorNumber]=${RawResults[$processorNumber]}$commandRaw
+		index=$((index+1))
+	done
+	
+	DarkFishTechnology_runGroupCommands "RawResults"
 }
 
 BenchmarkTools_trimSISSRsResults(){
 	DarkFishTechnology_runCommand 0 "mkdir TrimmedResults"
 
-	DarkFishTechnology_runCommand 0 "( tail -n +58 RawResults/$output | head -n -1 > TrimmedResults/$output ) ; "
-	DarkFishTechnology_runCommand 0 "( sed -n 23,55p RawResults/$output > TrimmedResults/Summary$output ) ; "
+	commandTrim1=""
+	commandTrim2=""
+	fileNumber=0
+	for file in $(ls RawResults/)
+	do 
+		randomFile1=$(DarkFishTechnology_generateCacheEntry)
+		command1="( tail -n +58 RawResults/$file | head -n -1 > $randomFile1) ;"
+		command1=$command1"( DarkFishTechnology_linkCacheEntry $randomFile1 TrimmedResults Peaks_${file%.*}.txt ) ;"
+		processorNumber$(($fileNumber%$processors))
+		TrimmedResults[$processorNumber]=${TrimmedResults[$processorNumber]}$command1
+		fileNumber=$((fileNumber+1))
+
+		randomFile2=$(DarkFishTechnology_generateCacheEntry)
+		command2="( sed -n 23,55p RawResults/$file > $randomFile2) ; "
+		command2=$command2"( DarkFishTechnology_linkCacheEntry $randomFile2 TrimmedResults Summary_${file%.*}.txt ) ;"
+		processorNumber$(($fileNumber%$processors))
+		TrimmedResults[$processorNumber]=${TrimmedResults[$processorNumber]}$command2
+		fileNumber=$((fileNumber+1))
+	done
+	
+	DarkFishTechnology_runGroupCommands "TrimmedResults"
 }
 
