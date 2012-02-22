@@ -18,7 +18,6 @@ BenchmarkTools_extractFileInfos(){
 BenchmarkTools_prepareSamples(){
 	DarkFishTechnology_runCommand 0 "mkdir Samples"
 
-	echo "\$fileFormat[0] = ${fileFormat[0]}"
 	if [ ${fileFormats[0]} = "txt" ]
 	then
 		BenchmarkTools_extractFileInfos
@@ -40,7 +39,31 @@ BenchmarkTools_prepareSample(){
 	DarkFishTechnology_runCommand 0 "ln -s ../../$filename $sampleName"
 	randomFile=$(DarkFishTechnology_generateCacheEntry)	
 	DarkFishTechnology_runCommand 0 "mv $sampleName $randomFile"
-	DarkFishTechnology_linkCacheEntry $randomFile Samples $(basename $filename)
+	DarkFishTechnology_linkCacheEntry $randomFile Samples "$(basename $filename)"
+}
+
+# MACS tools
+
+BenchmarkTools_MACS_Analysis(){
+	DarkFishTechnology_runCommand 0 "mkdir Results"
+	
+	commandResults=""
+
+	index=0
+	fileNumber=0
+	for tmp in ${treatmentFiles[@]}
+	do
+		if [ ${controlFiles[$index]} != "" ]
+		then
+			commandResults="macs14 -t ../${treatmentFiles[$index]} -c ../${controlFiles[$index]} $options -n Results/$output"	
+		else
+			commandResults="macs14 -t ../${treatmentFiles[$index]} $options -n Results/$output"	
+		fi
+		processorNumber=$((fileNumber%processors))
+		Results[$processorNumber]=${Results[$processorNumber]}$commandResults
+	done
+
+	DarkFishTechnology_runGroupCommands "Results"
 }
 
 # SISSRs tools
@@ -52,62 +75,44 @@ BenchmarkTools_convertSamplesSISSRs(){
 	fileNumber=0
 	for file in ${treatmentFiles[@]}
 	do
-		commandTreatment=""
-		randomFileTreatment=$(DarkFishTechnology_generateCacheEntry)
-		treatmentFileName=Samples/$(basename ${treatmentFiles[$index]})
-
-		if [ ${controlFiles[$index]}!="" ]
-		then
-			commandControl=""
-			randomFileControl=$(DarkFishTechnology_generateCacheEntry)
-			controlFileName=Samples/$(basename ${controlFiles[$index]})
-		fi
-
-		# If file format is eland, we need to convert to regular 4 column bed file to match FOXA1 file format
-		# Then we add the two extra columns so sissrs.pl doesn't crash and finish command
-		if [ ${fileFormats[$index]} = "eland" ]
-		then
-			tmpName=${treatmentFileName%.*}.tmp
-			toAdd="( cat $treatmentFileName | sed -e 's/Homo_sapiens.NCBI36.42.dna.chromosome.//g' | sed -e 's/.fa//g' > $tmpName ) ; "
-			commandTreatment=$commandTreatment$toAdd
-			commandTreatment=$commandTreatment"( eland2bed $tmpName | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFileTreatment ) ; "
-			commandTreatment=$commandTreatment"( rm $tmpName ) ;"
-			if [ ${controlFiles[$index]}!="" ]
-			then
-				tmpName=${controlFileName%.*}.tmp
-				toAdd="( cat $controlFileName | sed -e 's/Homo_sapiens.NCBI36.42.dna.chromosome.//g' | sed -e 's/.fa//g' > $tmpName ) ; "
-				commandControl=$commandControl$toAdd
-				commandControl=$commandControl"( eland2bed $controlFileName | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFileControl ) ; "
-				commandControl=$commandControl"( rm $tmpName ) ;"
-			fi
-		else
-			commandTreatment=$commandTreatment"( awk '{\$5=0;\$6=\$4;\$4=0}1' $treatmentFileName > $randomFileTreatment) ; "
-		
-			if [ ${controlFiles[$index]} != "" ]
-			then
-				commandControl=$commandControl"( awk '{\$5=0;\$6=\$4;\$4=0}1' $controlFileName > $randomFileControl) ; "
-			fi
-		fi
-		
 		processorNumber=$(($fileNumber%$processors))
-		toAdd="( DarkFishTechnology_linkCacheEntry $randomFileTreatment FormatedSamples Formated_$(basename $treatmentFileName)) ; "
-		commandTreatment=$commandTreatment$toAdd
+		commandTreatment=$(BenchmarkTools_getSISSRsSamplesConvertCommand ${treatmentFiles[$index]} ${fileFormats[$index]})
 		FormatedSamples[$processorNumber]=${FormatedSamples[$processorNumber]}$commandTreatment
 		fileNumber=$(($fileNumber+1))
 
 		if [ ${controlFiles[$index]} != "" ]
 		then
 			processorNumber=$(($fileNumber%$processors))
-			toAdd="( DarkFishTechnology_linkCacheEntry $randomFileControl FormatedSamples Formated_$(basename $controlFileName)) ; "
-			commandControl=$commandControl$toAdd
+			commandControl=$(BenchmarkTools_getSISSRsSamplesConvertCommand ${controlFiles[$index]} ${fileFormats[$index]})
 			FormatedSamples[$processorNumber]=${FormatedSamples[$processorNumber]}$commandControl
 			fileNumber=$((fileNumber+1))
 		fi
 
 		index=$((index+1))
 	done
-	
+
 	DarkFishTechnology_runGroupCommands "FormatedSamples"
+}
+
+BenchmarkTools_getSISSRsSamplesConvertCommand(){
+	sampleFileName=Samples/$(basename $1)
+	sampleFileFormat=$2
+	randomFile=$(DarkFishTechnology_generateCacheEntry)
+	
+	if [ sampleFileFormat = "eland" ]
+	then
+		tmpName=${sampleFileName%.*}.tmp
+		convertCommand="( cat $sampleFileName | sed -e 's/Homo_sapiens.NCBI36.42.dna.chromosome.//g' | sed -e 's/.fa//g' > $tmpName ) ; "
+		convertCommand=$convertCommand"( eland2bed $tmpName | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFile ) ; "
+		convertCommand=convertCommand" ( rm $tmpName ) ; "
+	else
+		convertCommand=$convertCommand"( awk '{\$5=0;\$6=\$4;\$4=0}1' $sampleFileName > $randomFile) ; "
+	fi
+
+	toAdd="( DarkFishTechnology_linkCacheEntry $randomFile FormatedSamples Formated_$(basename $1)) ; "
+	convertCommand=$convertCommand$toAdd
+
+	echo $convertCommand
 }
 
 BenchmarkTools_getRawSISSRsResults(){
