@@ -66,9 +66,8 @@ BenchmarkTools_MACS_Analysis(){
 	DarkFishTechnology_runGroupCommands "Results"
 }
 
-# SISSRs tools
-
-BenchmarkTools_convertSamplesSISSRs(){
+BenchmarkTools_convertSamples(){
+	program=$1
 	DarkFishTechnology_runCommand 0 "( mkdir FormatedSamples ) ; "
 
 	index=0
@@ -76,7 +75,7 @@ BenchmarkTools_convertSamplesSISSRs(){
 	for file in ${treatmentFiles[@]}
 	do
 		processorNumber=$(($fileNumber%$processors))
-		commandTreatment=$(BenchmarkTools_getSISSRsSamplesConvertCommand ${treatmentFiles[$index]} ${fileFormats[$index]})
+		commandTreatment=$("BenchmarkTools_get"$program"SamplesConvertCommand" ${treatmentFiles[$index]} ${fileFormats[$index]})
 		FormatedSamples[$processorNumber]=${FormatedSamples[$processorNumber]}$commandTreatment
 		fileNumber=$(($fileNumber+1))
 
@@ -93,6 +92,8 @@ BenchmarkTools_convertSamplesSISSRs(){
 
 	DarkFishTechnology_runGroupCommands "FormatedSamples"
 }
+
+# SISSRs tools
 
 BenchmarkTools_getSISSRsSamplesConvertCommand(){
 	sampleFileName=Samples/$(basename $1)

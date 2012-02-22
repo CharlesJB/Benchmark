@@ -3,30 +3,38 @@
 # date: 2012-02-13
 # based on BlueTsunami: github.com/sebhtml/NGS-Pipelines/blob/master/BlueTsunami
 
-
-# the argument must not be absolute paths.
-processors=$1
-fileFormat=$2
-output=$3
-options=$4
-treatmentFile=$5
-controlFile=$6
-
-mkdir $output
-cd $output
-
 source $DARK_FISH_TECHNOLOGY
 source $BENCHMARKTOOLS
+
+# Process arguments
+# The arguments must not be absolute paths.
+processors=$1
+output=$2
+fileFormat=$3
+options=$4
+
+if [ $fileFormat = "txt" ]
+then
+	fileName=$5	
+	BenchmarkTools_extractFileInfos $fileName
+else
+	fileFormats[0]=$fileFormat
+	treatmentFiles[0]=$5
+	controlFiles[0]=$6
+fi
+
+# Prepare analysis
+mkdir $output
+cd $output
 
 DarkFishTechnology_initializeDirectory
 DarkFishTechnology_runCommand 0 "eland2bed --version &> meta/eland2bed.version"
 
 # Prepare samples
-BenchmarkTools_prepareSample $treatmentFile
-BenchmarkTools_prepareSample $controlFile
+BenchmarkTools_prepareSamples
 
 # Convert sample for analysis
-BenchmarkTools_convertSamplesSISSRs
+BenchmarkTools_convertSamples "SISSRs"
 
 # Do the actual analysis
 BenchmarkTools_getRawSISSRsResults
