@@ -42,30 +42,6 @@ BenchmarkTools_prepareSample(){
 	DarkFishTechnology_linkCacheEntry $randomFile Samples "$(basename $filename)"
 }
 
-# MACS tools
-
-BenchmarkTools_MACS_Analysis(){
-	DarkFishTechnology_runCommand 0 "mkdir Results"
-	
-	commandResults=""
-
-	index=0
-	fileNumber=0
-	for tmp in ${treatmentFiles[@]}
-	do
-		if [ ${controlFiles[$index]} != "" ]
-		then
-			commandResults="macs14 -t ../${treatmentFiles[$index]} -c ../${controlFiles[$index]} $options -n Results/$output"	
-		else
-			commandResults="macs14 -t ../${treatmentFiles[$index]} $options -n Results/$output"	
-		fi
-		processorNumber=$((fileNumber%processors))
-		Results[$processorNumber]=${Results[$processorNumber]}$commandResults
-	done
-
-	DarkFishTechnology_runGroupCommands "Results"
-}
-
 BenchmarkTools_convertSamples(){
 	program=$1
 	DarkFishTechnology_runCommand 0 "( mkdir FormatedSamples ) ; "
@@ -91,6 +67,30 @@ BenchmarkTools_convertSamples(){
 	done
 
 	DarkFishTechnology_runGroupCommands "FormatedSamples"
+}
+
+# MACS tools
+
+BenchmarkTools_MACS_Analysis(){
+	DarkFishTechnology_runCommand 0 "mkdir Results"
+	
+	commandResults=""
+
+	index=0
+	fileNumber=0
+	for tmp in ${treatmentFiles[@]}
+	do
+		if [ ${controlFiles[$index]} != "" ]
+		then
+			commandResults="macs14 -t ../${treatmentFiles[$index]} -c ../${controlFiles[$index]} $options -n Results/$output"	
+		else
+			commandResults="macs14 -t ../${treatmentFiles[$index]} $options -n Results/$output"	
+		fi
+		processorNumber=$((fileNumber%processors))
+		Results[$processorNumber]=${Results[$processorNumber]}$commandResults
+	done
+
+	DarkFishTechnology_runGroupCommands "Results"
 }
 
 # SISSRs tools

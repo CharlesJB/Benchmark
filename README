@@ -1,4 +1,4 @@
-This repository will contain the tools that will be coded for the peak calling benchmark project
+This repository contain the tools that will be coded for the peak calling benchmark project
 
 // Programs:
 
@@ -13,16 +13,39 @@ commands in parallel. (see https://github.com/sebhtml/NGS-Pipelines)
 BenchmarkTools
 	Collection of tools that are used in *_Analysis scripts
 
-SISSR_Analysis.sh
-	Usage:
-	SISSR_Analysis.sh NumberOfProcessors FileFormat Options TreatmentFile ControlFile
+
+*_Analysis.sh
+
+Usage 1:
+*_Analysis.sh NumberOfProcessors Output FileFormat Options TreatmentFile ControlFile
+
+Usage 2:
+*_Analysis.sh NumberOfProcessors Output FileFormat Options BatchFile
 
 	NumberOfProcessors: 	The number of processor the script is allowed to use.
-	FileFormat: 		bed or eland.
-	Options: 		The list of options in the same format as specified in SISSR
-		 		documentation, between quotation marks. Minimally needs to 
-				include genome size (i.e.: "-s 3200000000").
-	TreatmentFile: 		The treatment file to analyze. Use relative path starting 
-				from current working directory.
-	BackGroundFile:		The background file to analyse. Use relative path starting
-				from current working directory. Optional.
+
+	Output:			Name of the folder that will contain the analysis 
+				and prefix that will be used for the result files.
+
+	FileFormat: 		bed or eland for usage 1.
+				txt for usage 2.
+
+	Options: 		The list of options in the same format as specified 
+				in SISSR documentation, between quotation marks. 
+				Minimally needs to include genome size 
+				(i.e.: "-s 3200000000").
+
+	TreatmentFile: 		The treatment file to analyze. Use relative path 
+				starting from current working directory.
+
+	ControlFile:		The background file to analyse. Use relative 
+				path starting from current working directory. 
+				Optional.
+
+	BatchFile		File containing a list of dataset to be analyzed.
+				Contains three columns separated by tabs:
+					1- FileFormat (bed or eland)
+					2- TreatmentFile
+					3- ControlFile
+
+
