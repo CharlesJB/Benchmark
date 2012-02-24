@@ -6,7 +6,6 @@ BenchmarkTools_extractFileInfos(){
 	index=0
 	while read line
 	do
-		echo $line
 		words=( $line )
 		fileFormats[$index]=${words[0]}
 		treatmentFiles[$index]=${words[1]}
@@ -58,7 +57,7 @@ BenchmarkTools_convertSamples(){
 		if [ ${controlFiles[$index]} != "" ]
 		then
 			processorNumber=$(($fileNumber%$processors))
-			commandControl=$(BenchmarkTools_getSISSRsSamplesConvertCommand ${controlFiles[$index]} ${fileFormats[$index]})
+			commandControl=$("BenchmarkTools_get"$program"SamplesConvertCommand" ${controlFiles[$index]} ${fileFormats[$index]})
 			FormatedSamples[$processorNumber]=${FormatedSamples[$processorNumber]}$commandControl
 			fileNumber=$((fileNumber+1))
 		fi
@@ -69,22 +68,115 @@ BenchmarkTools_convertSamples(){
 	DarkFishTechnology_runGroupCommands "FormatedSamples"
 }
 
+# cisGenome tools
+
+BenchmarkTools_getcisGenomeSamplesConvertCommand(){
+	sampleFileName=$1
+	sampleFileFormat=$2
+	randomFile=$(DarkFishTechnology_generateCacheEntry)
+
+	case "$sampleFileFormat" in
+	
+	eland)	commandEland="( file_eland2aln_v2 -i Samples/$sampleFileName -o $randomFile -s 0 ) ; "
+		;;
+	bed)	commandBed="( file_bed2aln -i Samples/$sampleFileName -o $randomFile ) ; "
+		;;
+	*)	echo "$sampleFileFormat is not currently supported."
+		;;
+	esac
+
+	commandBed=$commandBed" ( DarkFishTechnology_linkCacheEntry $randomFile FormatedSamples Formated_$(basename $sampleFileName) ) ; "
+	echo "$commandBed"
+}
+
+BenchmarkTools_prepareSamplesLists(){
+	DarkFishTechnology_runCommand 0 "mkdir SamplesLists"
+
+	index=0
+	for file in ${treatmentFiles[@]}
+	do
+		randomFile=$(DarkFishTechnology_generateCacheEntry)
+		treatmentName=$(basename ${treatmentFiles[$index]})
+		treatmentFullPath="$PWD/FormatedSamples/Formated_$treatmentName"
+		controlName=$(basename ${controlFiles[$index]})
+		controlFullPath="$PWD/FormatedSamples/Formated_$controlName"
+		listName=SamplesLists/${treatmentName%.*}.list
+		#DarkFishTechnology_runCommand 0 "echo -e \"$treatmentFullPath\t1\" > $listName"
+		DarkFishTechnology_runCommand 0 "echo -e \"$treatmentFullPath\t1\" > $randomFile"
+		#DarkFishTechnology_runCommand 0 "echo -e \"$controlFullPath\t0\" >> $listName"
+		DarkFishTechnology_runCommand 0 "echo -e \"$controlFullPath\t0\" >> $randomFile"
+		DarkFishTechnology_linkCacheEntry $randomFile SamplesLists $(basename $listName)
+		index=$((index+1))
+	done
+}
+
+BenchmarkTools_getRawcisGenomeResults(){
+	DarkFishTechnology_runCommand 0 "mkdir RawResults"	
+
+	fileNumber=0
+	for file in $(ls SamplesLists)
+	do
+		randomFile=$(DarkFishTechnology_generateCacheEntry)
+		basenameFile=$(basename $file)
+		# seqpeak tries to delete a .cgw file in current dir, but it is created in RawResults.
+		# A dummy file is created to avoid error message and the real file is deleted manually.
+		commandList="( touch ${basenameFile%.*}.cgw ) ; " 
+		commandList=$commandList"( seqpeak -i SamplesLists/$file -d RawResults -o ${basenameFile%.*} ) ; "
+		commandList=$commandList"( rm RawResults/*.bar ) ; "
+		commandList=$commandList"( rm RawResults/*.cgw ) ; "
+		commandList=$commandList"( mv RawResults/*.cod $randomFile ) ; "
+		commandList=$commandList"( DarkFishTechnology_linkCacheEntry $randomFile RawResults "${basenameFile%.*}.cod" ) ; "
+		processorNumber=$((fileNumber%processors))
+		RawResults[$processorNumber]=${RawResults[$processorNumber]}$commandList
+	done
+
+	DarkFishTechnology_runGroupCommands "RawResults"
+}
+
+BenchmarkTools_trimcisGenomeResults(){
+	DarkFishTechnology_runCommand 0 "mkdir Results"
+
+	fileNumber=0
+	for file in $(ls RawResults)
+	do
+		commandTrim1="( cut -f2-4 RawResults/$file > Results/Peaks_$(basename $file)) ; "
+		commandTrim2="( cut -f1,5-18 RawResults/$file > Results/Misc_$(basename $file)) ; "
+		processorNumber=$((fileNumber%processors))
+		Results[$processorNumber]=${Results[$processorNumber]}$commandTrim1
+		fileNumber=$((fileNumber+1))
+		processorNumber=$((fileNumber%processors))
+		Results[$processorNumber]=${Results[$processorNumber]}$commandTrim2
+		fileNumber=$((fileNumber+1))
+	done
+
+	DarkFishTechnology_runGroupCommands "Results"
+}
+
+BenchmarkTools_linkcisGenomePeakList(){
+	DarkFishTechnology_runCommand 0 "mkdir PeakList"
+
+	for file in $(ls Results/Peak*)
+	do
+		DarkFishTechnology_runCommand 0 "ln -s ../$file PeakList/$(basename $file)"
+	done
+
+}
+
 # MACS tools
 
 BenchmarkTools_MACS_Analysis(){
 	DarkFishTechnology_runCommand 0 "mkdir Results"
 	
 	commandResults=""
-
 	index=0
 	fileNumber=0
 	for tmp in ${treatmentFiles[@]}
 	do
 		if [ ${controlFiles[$index]} != "" ]
 		then
-			commandResults="macs14 -t ../${treatmentFiles[$index]} -c ../${controlFiles[$index]} $options -n Results/$output"	
+			commandResults="( macs14 -t ../${treatmentFiles[$index]} -c ../${controlFiles[$index]} $options -n Results/$output ) ; "
 		else
-			commandResults="macs14 -t ../${treatmentFiles[$index]} $options -n Results/$output"	
+			commandResults="( macs14 -t ../${treatmentFiles[$index]} $options -n Results/$output ) ; "
 		fi
 		processorNumber=$((fileNumber%processors))
 		Results[$processorNumber]=${Results[$processorNumber]}$commandResults
@@ -93,19 +185,29 @@ BenchmarkTools_MACS_Analysis(){
 	DarkFishTechnology_runGroupCommands "Results"
 }
 
+BenchmarkTools_linkMacsPeakList(){
+	DarkFishTechnology_runCommand 0 "mkdir PeakList"
+
+	for file in $(ls Results/*peak.bed)
+	do
+		DarkFishTechnology_runCommand 0 "ln -s ../$file PeakList/$(basename $file)"
+	done
+
+}
+
 # SISSRs tools
 
 BenchmarkTools_getSISSRsSamplesConvertCommand(){
 	sampleFileName=Samples/$(basename $1)
 	sampleFileFormat=$2
 	randomFile=$(DarkFishTechnology_generateCacheEntry)
-	
-	if [ sampleFileFormat = "eland" ]
+
+	if [ $sampleFileFormat = "eland" ]
 	then
 		tmpName=${sampleFileName%.*}.tmp
 		convertCommand="( cat $sampleFileName | sed -e 's/Homo_sapiens.NCBI36.42.dna.chromosome.//g' | sed -e 's/.fa//g' > $tmpName ) ; "
 		convertCommand=$convertCommand"( eland2bed $tmpName | awk '{\$5=0;\$6=\$4;\$4=0}1' > $randomFile ) ; "
-		convertCommand=convertCommand" ( rm $tmpName ) ; "
+		convertCommand=$convertCommand" ( rm $tmpName ) ; "
 	else
 		convertCommand=$convertCommand"( awk '{\$5=0;\$6=\$4;\$4=0}1' $sampleFileName > $randomFile) ; "
 	fi
@@ -142,7 +244,7 @@ BenchmarkTools_getRawSISSRsResults(){
 }
 
 BenchmarkTools_trimSISSRsResults(){
-	DarkFishTechnology_runCommand 0 "mkdir TrimmedResults"
+	DarkFishTechnology_runCommand 0 "mkdir Results"
 
 	commandTrim1=""
 	commandTrim2=""
@@ -151,19 +253,28 @@ BenchmarkTools_trimSISSRsResults(){
 	do 
 		randomFile1=$(DarkFishTechnology_generateCacheEntry)
 		command1="( tail -n +58 RawResults/$file | head -n -1 > $randomFile1) ;"
-		command1=$command1"( DarkFishTechnology_linkCacheEntry $randomFile1 TrimmedResults Peaks_${file%.*}.txt ) ;"
-		processorNumber$(($fileNumber%$processors))
-		TrimmedResults[$processorNumber]=${TrimmedResults[$processorNumber]}$command1
+		command1=$command1"( DarkFishTechnology_linkCacheEntry $randomFile1 Results Peaks_${file%.*}.txt ) ;"
+		processorNumber=$(($fileNumber%$processors))
+		Results[$processorNumber]=${Results[$processorNumber]}$command1
 		fileNumber=$((fileNumber+1))
 
 		randomFile2=$(DarkFishTechnology_generateCacheEntry)
 		command2="( sed -n 23,55p RawResults/$file > $randomFile2) ; "
-		command2=$command2"( DarkFishTechnology_linkCacheEntry $randomFile2 TrimmedResults Summary_${file%.*}.txt ) ;"
-		processorNumber$(($fileNumber%$processors))
-		TrimmedResults[$processorNumber]=${TrimmedResults[$processorNumber]}$command2
+		command2=$command2"( DarkFishTechnology_linkCacheEntry $randomFile2 Results Summary_${file%.*}.txt ) ;"
+		processorNumber=$(($fileNumber%$processors))
+		Results[$processorNumber]=${Results[$processorNumber]}$command2
 		fileNumber=$((fileNumber+1))
 	done
 	
-	DarkFishTechnology_runGroupCommands "TrimmedResults"
+	DarkFishTechnology_runGroupCommands "Results"
+}
+
+BenchmarkTools_linkSISSRsPeakList(){
+	DarkFishTechnology_runCommand 0 "mkdir PeakList"
+
+	for file in $(ls Results/Peak*)
+	do
+		DarkFishTechnology_runCommand 0 "ln -s ../$file PeakList/$(basename $file)"
+	done
 }
 
