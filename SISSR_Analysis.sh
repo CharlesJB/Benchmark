@@ -29,6 +29,9 @@ cd $output
 
 DarkFishTechnology_initializeDirectory
 DarkFishTechnology_runCommand 0 "eland2bed --version &> meta/eland2bed.version"
+# Note: There is no --version or equivalent with sissrs, this have to be hardcoded
+#       and manually changed when a new version is used.
+DarkFishTechnology_runCommand 0 "echo \"sissrs v1.4\" &> meta/sissrs.version"
 
 # Prepare samples
 BenchmarkTools_prepareSamples
@@ -43,3 +46,6 @@ DarkFishTechnology_purgeGroupCache "FormatedSamples"
 # Trim results
 BenchmarkTools_trimSISSRsResults
 DarkFishTechnology_purgeGroupCache "RawResults"
+
+# Link peak list in main folder for subsequent analysis
+BenchmarkTools_linkSISSRsPeakList
