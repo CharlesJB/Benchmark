@@ -31,9 +31,8 @@ Usage 2:
 				txt for usage 2.
 
 	Options: 		The list of options in the same format as specified 
-				in SISSR documentation, between quotation marks. 
-				Minimally needs to include genome size 
-				(i.e.: "-s 3200000000").
+				in each program documentation, between quotation 
+				marks. 
 
 	TreatmentFile: 		The treatment file to analyze. Use relative path 
 				starting from current working directory.
@@ -48,4 +47,15 @@ Usage 2:
 					2- TreatmentFile
 					3- ControlFile
 
+Important:
+
+ SISSR_Analysis.sh
+
+	The Options field should at least include the genome size.
+	Example: "-s 3200000000"
+
+ MACS_Analysis.sh
+
+	The Options field should at least include the reference genome.
+	Example: "-g hs"
 
