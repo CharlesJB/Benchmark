@@ -35,3 +35,6 @@ BenchmarkTools_prepareSamples
 
 # Do the actual analysis
 BenchmarkTools_MACS_Analysis
+
+# Link peak list for subsequent analysis
+BenchmarkTools_linkMacsPeakList

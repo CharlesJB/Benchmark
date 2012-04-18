@@ -36,17 +36,20 @@ setOption <- function(optionName, options, defaultValues) {
 
 arguments <- commandArgs(trailingOnly = T)
 
-treatmentFile <- arguments[1]
-inputFile <- arguments[2]
-options <- arguments[3]
+processors <- as.numeric(arguments[1])
+treatmentFile <- arguments[2]
+inputFile <- arguments[3]
+options <- arguments[4]
+outputFileName <- arguments[5]
 
-if (length(arguments) != 1 && length(arguments) != 3) {
+if (length(arguments) != 1 && length(arguments) != 5) {
 	write("	Usage:","")
-	write("	PICS_default.R <TreatmentFile> <InputFile> <FileType> <Options>","")
+	write("	PICS_default.R <Processors> <TreatmentFile> <InputFile> <Options> <OutputName>","")
+	write("	Processors: number of processors that the script is allowed to use for the analysis","")
 	write("	TreatmentFile: bed file for treatment (without header)","")
 	write("	Inputfile: bed file for input (without header). Enter NULL if no input","")
-	write("	FileType: bed or eland","")
 	write("	Options: the name of the option followed by it's value (separated with a space)","")
+	write("	OutputName: the name of the results file","")
 	q()
 }
 if (arguments[1] == "--version" || arguments[1] == "-v") {
@@ -66,29 +69,27 @@ if (inputFile != "NULL" && !file.exists(inputFile)) {
 library(PICS)
 library(rtracklayer)
 library(snowfall)
-sfInit(parallel=TRUE,cpus=8)
+sfInit(parallel=TRUE,cpus=processors)
 sfLibrary(PICS)
 
 
 ################################
-# Do the actual analysis
-
 # Extract options
+
 segDefault <- c("map", "NULL", "minReads", "2", "minReadsInRegion", "3", "jitter", FALSE, "dataType", "TF", 
 	     "maxLregion", "0", "minLregion", "100")
 
 map <- setOption("map", options, segDefault)
-minReads <- setOption("minReads", options, segDefault)
-minReads <- as.numeric(minReads)
-minReadsInRegion <- setOption("minReadsInRegion", options, segDefault)
-minReadsInRegion <- as.numeric(minReadsInRegion)
-jitter <- setOption("jitter", options, segDefault)
-jitter <- as.logical(jitter)
+minReads <- as.numeric(setOption("minReads", options, segDefault))
+minReadsInRegion <- as.numeric(setOption("minReadsInRegion", options, segDefault))
+jitter <- as.logical(setOption("jitter", options, segDefault))
 dataType <- setOption("dataType", options, segDefault)
-maxLregion <- setOption("maxLregion", options, segDefault)
-maxLregion <- as.numeric(maxLregion)
-minLregion <- setOption("minLregion", options, segDefault)
-minLregion <- as.numeric(minLregion)
+maxLregion <- as.numeric(setOption("maxLregion", options, segDefault))
+minLregion <- as.numeric(setOption("minLregion", options, segDefault))
+
+
+################################
+# Do the actual analysis
 
 #Read the experiment : 
 write("Reading treatment file...", "")
@@ -162,7 +163,7 @@ rdBed<-makeRangedDataOutput(pics,type="bed",filter=c(myFilter,list(score=c(1,Inf
 #### code chunk number 12: Create the bed file (eval = FALSE)
 ####################################################
 #library(rtracklayer)
-export(rdBed,"myfile.bed")
+export(rdBed,outputFileName)
 
 #
 ####################################################

@@ -6,6 +6,7 @@
 
 source $DARK_FISH_TECHNOLOGY
 source $BENCHMARKTOOLS
+echo $RSCRIPTS_PATH
 
 # Process arguments
 # The arguments must not be absolute paths.
@@ -31,12 +32,18 @@ cd $output
 DarkFishTechnology_initializeDirectory
 DarkFishTechnology_runCommand 0 "R --version &> meta/R.version"
 DarkFishTechnology_runCommand 0 "macs14 --version &> meta/macs.version"
+#DarkFishTechnology_runCommand 0 "Rscript $RSCRIPTS_PATH/sessionInfo.R &> meta/R.sessionInfo"
+
 
 # Prepare samples
 BenchmarkTools_prepareSamples
 
+# Convert sample for analysis
+BenchmarkTools_convertSamples "PICS"
+
 # Do the actual analysis
-BenchmarkTools_MACS_Analysis
+BenchmarkTools_PICS_Analysis
+DarkFishTechnology_purgeGroupCache "FormatedSamples"
 
 # Link peak list for subsequent analysis
-BenchmarkTools_linkMacsPeakList
+#BenchmarkTools_linkMacsPeakList

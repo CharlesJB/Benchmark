@@ -1,10 +1,7 @@
 #!/bin/bash
 # author: Charles Joly Beauparlant
-# date: 2012-02-22
+# date: 2012-03-05
 # based on BlueTsunami: github.com/sebhtml/NGS-Pipelines/blob/master/BlueTsunami
-# Note: cisGenome produces *.bar files that can be used for vizualition on their 
-# 	browser. Unfortunately, since those files are very large, they will not 
-#	be kept for the Benchmark Analysis.
 
 source $DARK_FISH_TECHNOLOGY
 source $BENCHMARKTOOLS
@@ -19,11 +16,13 @@ options=$4
 if [ $fileFormat = "txt" ]
 then
 	fileName=$5	
+	genome_table=$6
 	BenchmarkTools_extractFileInfos $fileName
 else
 	fileFormats[0]=$fileFormat
 	treatmentFiles[0]=$5
 	controlFiles[0]=$6
+	genome_table=$7
 fi
 
 # Prepare analysis
@@ -31,24 +30,23 @@ mkdir $output
 cd $output
 
 DarkFishTechnology_initializeDirectory
-# Note: There is no --version or equivalent with cisGenome, this have to be hardcoded
+# Note: There is no --version or equivalent with quest, this have to be hardcoded
 #       and manually changed when a new version is used.
-DarkFishTechnology_runCommand 0 "echo \"cisGenome v2.0\" &> meta/cisGenome.version"
+DarkFishTechnology_runCommand 0 "echo \"quest v2.4\" &> meta/quest.version"
 
 # Prepare samples
 BenchmarkTools_prepareSamples
 
 # Convert sample for analysis
-BenchmarkTools_convertSamples "cisGenome"
-BenchmarkTools_prepareSamplesLists
+BenchmarkTools_convertSamples "quest"
 
 # Do the actual analysis
-BenchmarkTools_getRawcisGenomeResults
+BenchmarkTools_getRawquestResults
 #DarkFishTechnology_purgeGroupCache "FormatedSamples"
 
 # Trim results
-BenchmarkTools_trimcisGenomeResults
-DarkFishTechnology_purgeGroupCache "RawResults"
+BenchmarkTools_trimquestResults
+#DarkFishTechnology_purgeGroupCache "RawResults"
 
 # Link peak list in main folder for subsequent analysis
-BenchmarkTools_linkcisGenomePeakList
+BenchmarkTools_linkquestPeakList
